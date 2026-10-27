@@ -1,12 +1,12 @@
 <template>
-  <q-page class="flex flex-center text-white q-pa-sm truco-page">
+  <q-page class="flex flex-center text-white q-pa-xs truco-page">
     <div
-      class="game-container column items-center q-gutter-xs q-pa-md"
+      class="game-container column items-center q-gutter-xs q-pa-sm"
       style="max-width: 950px; width: 100%"
     >
       <!-- Cabeçalho Elegante / Placar -->
       <div class="column items-center q-gutter-xs w-full q-px-sm" style="width: 100%">
-        <div class="text-h5 text-weight-bold text-white tracking-wide text-shadow">
+        <div class="text-h5 text-weight-bold text-white tracking-wide text-shadow game-title">
           Truco Game Venezuelan
         </div>
 
@@ -48,57 +48,62 @@
         {{ mensagemStatus }}
       </div>
 
-      <!-- Layout Principal da Mesa com Ações Laterais -->
-      <div class="row justify-between items-center w-full q-gutter-xs" style="width: 100%">
-        <!-- Painel Esquerdo: Truco e Progressão -->
+      <!-- Layout Principal Responsivo -->
+      <div
+        class="row justify-between items-center w-full q-gutter-xs main-game-layout"
+        style="width: 100%"
+      >
+        <!-- Painel Esquerdo / Superior (Apostas) -->
         <div class="column q-gutter-xs items-center side-panel">
           <div class="text-caption text-amber-4 text-weight-bold">Apostas</div>
-          <q-btn
-            color="amber-8"
-            text-color="dark"
-            label="Truco (3)"
-            class="side-action-btn text-weight-bold"
-            :disabled="
-              estadoJogo !== 'JOGANDO' || apostaAtual !== 1 || ultimoApostador === 'humano'
-            "
-            @click="cantarAcao('Truco')"
-            dense
-            unelevated
-          />
-          <q-btn
-            color="amber-8"
-            text-color="dark"
-            label="Retruco (6)"
-            class="side-action-btn text-weight-bold"
-            :disabled="
-              estadoJogo !== 'JOGANDO' || apostaAtual !== 3 || ultimoApostador === 'humano'
-            "
-            @click="cantarAcao('Retruco')"
-            dense
-            unelevated
-          />
-          <q-btn
-            color="orange-9"
-            label="Vale 9 (9)"
-            class="side-action-btn text-weight-bold"
-            :disabled="
-              estadoJogo !== 'JOGANDO' || apostaAtual !== 6 || ultimoApostador === 'humano'
-            "
-            @click="cantarAcao('Vale 9')"
-            dense
-            unelevated
-          />
-          <q-btn
-            color="deep-orange-9"
-            label="Vale 12 (12)"
-            class="side-action-btn text-weight-bold"
-            :disabled="
-              estadoJogo !== 'JOGANDO' || apostaAtual !== 9 || ultimoApostador === 'humano'
-            "
-            @click="cantarAcao('Vale 12')"
-            dense
-            unelevated
-          />
+          <div class="row q-gutter-xs justify-center panel-buttons-wrapper">
+            <q-btn
+              color="amber-8"
+              text-color="dark"
+              label="Truco (3)"
+              class="side-action-btn text-weight-bold"
+              :disabled="
+                estadoJogo !== 'JOGANDO' || apostaAtual !== 1 || ultimoApostador === 'humano'
+              "
+              @click="cantarAcao('Truco')"
+              dense
+              unelevated
+            />
+            <q-btn
+              color="amber-8"
+              text-color="dark"
+              label="Retruco (6)"
+              class="side-action-btn text-weight-bold"
+              :disabled="
+                estadoJogo !== 'JOGANDO' || apostaAtual !== 3 || ultimoApostador === 'humano'
+              "
+              @click="cantarAcao('Retruco')"
+              dense
+              unelevated
+            />
+            <q-btn
+              color="orange-9"
+              label="Vale 9 (9)"
+              class="side-action-btn text-weight-bold"
+              :disabled="
+                estadoJogo !== 'JOGANDO' || apostaAtual !== 6 || ultimoApostador === 'humano'
+              "
+              @click="cantarAcao('Vale 9')"
+              dense
+              unelevated
+            />
+            <q-btn
+              color="deep-orange-9"
+              label="Vale 12 (12)"
+              class="side-action-btn text-weight-bold"
+              :disabled="
+                estadoJogo !== 'JOGANDO' || apostaAtual !== 9 || ultimoApostador === 'humano'
+              "
+              @click="cantarAcao('Vale 12')"
+              dense
+              unelevated
+            />
+          </div>
         </div>
 
         <!-- Tapete de Jogo Luxuoso (Centro) -->
@@ -186,36 +191,38 @@
           </div>
         </div>
 
-        <!-- Painel Direito: Envido e Flor -->
+        <!-- Painel Direito / Inferior (Envido e Flor) -->
         <div class="column q-gutter-xs items-center side-panel">
           <div class="text-caption text-amber-4 text-weight-bold">Tantos</div>
-          <q-btn
-            color="primary"
-            label="Envido (2)"
-            class="side-action-btn text-weight-bold"
-            :disabled="estadoJogo !== 'JOGANDO' || envidoCantadoRodada || vazaAtual > 1"
-            @click="cantarAcao('Envido')"
-            dense
-            unelevated
-          />
-          <q-btn
-            color="primary"
-            label="Real Envido (3)"
-            class="side-action-btn text-weight-bold"
-            :disabled="estadoJogo !== 'JOGANDO' || envidoCantadoRodada || vazaAtual > 1"
-            @click="cantarAcao('Real Envido')"
-            dense
-            unelevated
-          />
-          <q-btn
-            color="accent"
-            label="Flor (3)"
-            class="side-action-btn text-weight-bold"
-            :disabled="estadoJogo !== 'JOGANDO' || florCantadaRodada || vazaAtual > 1"
-            @click="cantarAcao('Flor')"
-            dense
-            unelevated
-          />
+          <div class="row q-gutter-xs justify-center panel-buttons-wrapper">
+            <q-btn
+              color="primary"
+              label="Envido (2)"
+              class="side-action-btn text-weight-bold"
+              :disabled="estadoJogo !== 'JOGANDO' || envidoCantadoRodada || vazaAtual > 1"
+              @click="cantarAcao('Envido')"
+              dense
+              unelevated
+            />
+            <q-btn
+              color="primary"
+              label="Real Envido (3)"
+              class="side-action-btn text-weight-bold"
+              :disabled="estadoJogo !== 'JOGANDO' || envidoCantadoRodada || vazaAtual > 1"
+              @click="cantarAcao('Real Envido')"
+              dense
+              unelevated
+            />
+            <q-btn
+              color="accent"
+              label="Flor (3)"
+              class="side-action-btn text-weight-bold"
+              :disabled="estadoJogo !== 'JOGANDO' || florCantadaRodada || vazaAtual > 1"
+              @click="cantarAcao('Flor')"
+              dense
+              unelevated
+            />
+          </div>
         </div>
       </div>
 
@@ -662,7 +669,6 @@ const iniciarPartida = () => {
   }
 };
 
-// Efeito Especial de Confetes / Partículas em Tela Cheia ao Vencer
 const dispararEfeitosVitoria = () => {
   const canvas = document.createElement('canvas');
   canvas.style.position = 'fixed';
@@ -705,7 +711,7 @@ const dispararEfeitosVitoria = () => {
     particles.forEach((p) => {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.45; // Gravidade
+      p.vy += 0.45;
       p.alpha -= p.decay;
       p.rotation += p.vRot;
 
@@ -736,7 +742,7 @@ const verificarFimPartida = () => {
     mensagemFimPartida.value = `🎉 Parabéns! Venceu a partida por ${pontosHumano.value} a ${pontosIA.value}!`;
     fimPartida.value = true;
     estadoJogo.value = 'FIM';
-    dispararEfeitosVitoria(); // Dispara o efeito especial de vitória!
+    dispararEfeitosVitoria();
   } else if (pontosIA.value >= limitePartida) {
     mensagemFimPartida.value = `🤖 Fim do jogo! A IA venceu a partida por ${pontosIA.value} a ${pontosHumano.value}.`;
     fimPartida.value = true;
@@ -995,12 +1001,20 @@ onMounted(() => {
   letter-spacing: 0.3px;
 }
 
+/* Painéis Laterais Padrão */
 .side-panel {
   width: 105px;
   background: rgba(0, 0, 0, 0.25);
   padding: 8px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-buttons-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .side-action-btn {
@@ -1145,6 +1159,72 @@ onMounted(() => {
   }
   50% {
     transform: translateY(-10px);
+  }
+}
+
+/* ========================================================
+   MEDIA QUERIES PARA RESPONSIVIDADE (TABLETS E TELEFONES)
+   ======================================================== */
+@media (max-width: 768px) {
+  .game-container {
+    padding: 6px !important;
+    border-radius: 10px;
+  }
+
+  .game-title {
+    font-size: 1.1rem !important;
+  }
+
+  .main-game-layout {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+
+  .side-panel {
+    width: 100% !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 6px 10px !important;
+  }
+
+  .panel-buttons-wrapper {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    width: auto !important;
+    flex: 1;
+  }
+
+  .side-action-btn {
+    width: auto !important;
+    padding: 4px 8px !important;
+    font-size: 8.5px !important;
+    min-width: 60px;
+  }
+
+  .game-table-felt {
+    padding: 6px !important;
+    width: 100% !important;
+  }
+
+  .player-card {
+    width: 65px !important;
+    height: 85px !important;
+    border-radius: 6px;
+  }
+
+  .table-card,
+  .table-card-back {
+    width: 55px !important;
+    height: 72px !important;
+    border-radius: 6px;
+  }
+
+  .status-banner {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
   }
 }
 </style>
