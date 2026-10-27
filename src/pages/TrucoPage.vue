@@ -1,7 +1,7 @@
 <template>
   <q-page class="flex flex-center text-white q-pa-xs truco-page">
     <div
-      class="game-container column items-center q-gutter-xs q-pa-sm"
+      class="game-container column items-center q-gutter-xs q-pa-md"
       style="max-width: 950px; width: 100%"
     >
       <!-- Cabeçalho Elegante / Placar -->
@@ -54,9 +54,9 @@
         style="width: 100%"
       >
         <!-- Painel Esquerdo / Superior (Apostas) -->
-        <div class="column q-gutter-xs items-center side-panel">
+        <div class="column q-gutter-xs items-start side-panel">
           <div class="text-caption text-amber-4 text-weight-bold">Apostas</div>
-          <div class="row q-gutter-xs justify-center panel-buttons-wrapper">
+          <div class="column q-gutter-xs items-start panel-buttons-wrapper">
             <q-btn
               color="amber-8"
               text-color="dark"
@@ -192,14 +192,16 @@
         </div>
 
         <!-- Painel Direito / Inferior (Envido e Flor) -->
-        <div class="column q-gutter-xs items-center side-panel">
+        <div class="column q-gutter-xs items-start side-panel">
           <div class="text-caption text-amber-4 text-weight-bold">Tantos</div>
-          <div class="row q-gutter-xs justify-center panel-buttons-wrapper">
+          <div class="column q-gutter-xs items-start panel-buttons-wrapper">
             <q-btn
               color="primary"
               label="Envido (2)"
               class="side-action-btn text-weight-bold"
-              :disabled="estadoJogo !== 'JOGANDO' || envidoCantadoRodada || vazaAtual > 1"
+              :disabled="
+                estadoJogo !== 'JOGANDO' || envidoCantadoRodada || vazaAtual > 1 || apostaAtual > 1
+              "
               @click="cantarAcao('Envido')"
               dense
               unelevated
@@ -208,14 +210,16 @@
               color="primary"
               label="Real Envido (3)"
               class="side-action-btn text-weight-bold"
-              :disabled="estadoJogo !== 'JOGANDO' || envidoCantadoRodada || vazaAtual > 1"
+              :disabled="
+                estadoJogo !== 'JOGANDO' || envidoCantadoRodada || vazaAtual > 1 || apostaAtual > 1
+              "
               @click="cantarAcao('Real Envido')"
               dense
               unelevated
             />
             <q-btn
               color="accent"
-              label="Flor (3)"
+              label="Flor (3/5)"
               class="side-action-btn text-weight-bold"
               :disabled="estadoJogo !== 'JOGANDO' || florCantadaRodada || vazaAtual > 1"
               @click="cantarAcao('Flor')"
@@ -472,8 +476,9 @@ const melhorForcaIA = () => {
   return melhor;
 };
 
-const verificarTemFlor = (mao: string[]) => {
-  if (!mao[0] || !mao[1] || !mao[2]) return false;
+// Deteta se tem Flor e se é Flor Reservada (Perico + Perica)
+const verificarDetalhesFlor = (mao: string[]) => {
+  if (!mao[0] || !mao[1] || !mao[2]) return { tem: false, reservada: false };
   const pinta = alvosPinta();
 
   let temPerico = false;
@@ -491,9 +496,14 @@ const verificarTemFlor = (mao: string[]) => {
     naipesMao.push(naipe);
   }
 
-  if (temPerico && temPerica) return true;
-  if (naipesMao[0] === naipesMao[1] && naipesMao[1] === naipesMao[2]) return true;
+  // Flor Reservada: Perico e Perica ao mesmo tempo (Vale 5 pontos)
+  if (temPerico && temPerica) return { tem: true, reservada: true };
 
+  // 3 cartas do mesmo naipe
+  if (naipesMao[0] === naipesMao[1] && naipesMao[1] === naipesMao[2])
+    return { tem: true, reservada: false };
+
+  // 2 cartas do mesmo naipe + Perico ou Perica
   if (temPerico || temPerica) {
     const cartasFiltradas = mao.filter((c) => {
       const partes = c.split('_');
@@ -508,11 +518,11 @@ const verificarTemFlor = (mao: string[]) => {
     if (cartasFiltradas.length === 2) {
       const n1 = normalizarNaipe(cartasFiltradas[0]!.split('_')[1] ?? '');
       const n2 = normalizarNaipe(cartasFiltradas[1]!.split('_')[1] ?? '');
-      if (n1 === n2) return true;
+      if (n1 === n2) return { tem: true, reservada: false };
     }
   }
 
-  return false;
+  return { tem: false, reservada: false };
 };
 
 const calcularPontosEnvido = (mao: string[]) => {
@@ -544,6 +554,7 @@ const calcularPontosEnvido = (mao: string[]) => {
     }
   }
 
+  // Perico base 30 + carta da mesma pinta (ex: 30 + 5 = 35)
   if (pericoPresente) {
     let maxCombo = 30;
     for (const val of cartasDoNaipePinta) {
@@ -553,6 +564,7 @@ const calcularPontosEnvido = (mao: string[]) => {
     if (maxCombo > melhorEnvido) melhorEnvido = maxCombo;
   }
 
+  // Perica base 29 + carta da mesma pinta (ex: 29 + 5 = 34)
   if (pericaPresente) {
     let maxCombo = 29;
     for (const val of cartasDoNaipePinta) {
@@ -647,12 +659,15 @@ const iniciarPartida = () => {
   maoHumano.value = [baralho[0] ?? '', baralho[1] ?? '', baralho[2] ?? ''];
   maoAI.value = [baralho[3] ?? '', baralho[4] ?? '', baralho[5] ?? ''];
 
-  mensagemStatus.value = 'Rodada iniciada! Jogue uma carta ou utilize os botões laterais.';
+  mensagemStatus.value = 'Rodada iniciada! Cante o Envido/Flor na 1ª vaza ou jogue uma carta.';
 
-  if (verificarTemFlor(maoAI.value)) {
+  const florAI = verificarDetalhesFlor(maoAI.value);
+  if (florAI.tem) {
     florCantadaRodada.value = true;
-    pontosIA.value += 3;
-    mensagemStatus.value = '🌸 A IA cantou Flor e anota 3 pontos!';
+    const pontosFlor = florAI.reservada ? 5 : 3;
+    pontosIA.value += pontosFlor;
+    const nomeFlor = florAI.reservada ? 'Flor Reservada (Perico + Perica)' : 'Flor';
+    mensagemStatus.value = `🌸 A IA cantou ${nomeFlor} e anota ${pontosFlor} pontos!`;
     verificarFimPartida();
   }
 
@@ -900,21 +915,23 @@ const cantarAcao = (acao: string) => {
       mensagemStatus.value = '❌ A Flor não pode ser cantada agora.';
       return;
     }
-    if (!verificarTemFlor(maoHumano.value)) {
+    const resFlor = verificarDetalhesFlor(maoHumano.value);
+    if (!resFlor.tem) {
       mensagemStatus.value = '❌ Você não tem Flor na mão!';
       return;
     }
     florCantadaRodada.value = true;
-    pontosHumano.value += 3;
-    mensagemStatus.value = '🌸 Você cantou Flor e anota 3 pontos!';
+    const pontosFlor = resFlor.reservada ? 5 : 3;
+    pontosHumano.value += pontosFlor;
+    const nomeFlor = resFlor.reservada ? 'Flor Reservada (Perico + Perica)' : 'Flor';
+    mensagemStatus.value = `🌸 Você cantou ${nomeFlor} e anota ${pontosFlor} pontos!`;
     verificarFimPartida();
   } else if (acao === 'Envido' || acao === 'Real Envido') {
-    if (vazaAtual.value > 1 || envidoCantadoRodada.value) {
+    if (vazaAtual.value > 1 || envidoCantadoRodada.value || apostaAtual.value > 1) {
       mensagemStatus.value = '❌ O Envido não pode ser cantado agora.';
       return;
     }
     envidoCantadoRodada.value = true;
-    ultimoApostador.value = 'humano';
     const valorEnvido = acao === 'Real Envido' ? 3 : 2;
     const ptsH = calcularPontosEnvido(maoHumano.value);
     const ptsA = calcularPontosEnvido(maoAI.value);
@@ -1001,13 +1018,16 @@ onMounted(() => {
   letter-spacing: 0.3px;
 }
 
-/* Painéis Laterais Padrão */
 .side-panel {
-  width: 105px;
+  width: 125px;
+  box-sizing: border-box;
   background: rgba(0, 0, 0, 0.25);
-  padding: 8px;
+  padding: 8px 6px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .panel-buttons-wrapper {
@@ -1015,14 +1035,17 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  box-sizing: border-box;
+  align-items: flex-start;
 }
 
 .side-action-btn {
-  width: 100%;
-  font-size: 9px;
+  width: 95px;
+  font-size: 8.5px;
   padding: 2px 0;
   border-radius: 6px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
+  box-sizing: border-box;
 }
 
 .game-table-felt {
@@ -1126,7 +1149,6 @@ onMounted(() => {
   min-width: 300px;
 }
 
-/* Especiais para Vitória */
 .victory-card-glow {
   border: 2px solid #ffc107 !important;
   box-shadow:
@@ -1162,9 +1184,6 @@ onMounted(() => {
   }
 }
 
-/* ========================================================
-   MEDIA QUERIES PARA RESPONSIVIDADE (TABLETS E TELEFONES)
-   ======================================================== */
 @media (max-width: 768px) {
   .game-container {
     padding: 6px !important;
