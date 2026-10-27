@@ -353,7 +353,6 @@ const envidoCantadoRodada = ref(false);
 const estadoDesafioAI = ref('');
 const valorDesafioAI = ref(0);
 
-// Controlo para garantir que quem cantou não pode cantar de novo em seguida
 const ultimoApostador = ref<'humano' | 'ai' | null>(null);
 
 const mostrarDialogoDesafio = ref(false);
@@ -463,51 +462,142 @@ const melhorForcaIA = () => {
 
 const verificarTemFlor = (mao: string[]) => {
   if (!mao[0] || !mao[1] || !mao[2]) return false;
-  const n1 = normalizarNaipe(mao[0].split('_')[1] ?? '');
-  const n2 = normalizarNaipe(mao[1].split('_')[1] ?? '');
-  const n3 = normalizarNaipe(mao[2].split('_')[1] ?? '');
-  return n1 === n2 && n2 === n3;
+  const pinta = alvosPinta();
+
+  let temPerico = false;
+  let temPerica = false;
+  const naipesMao: string[] = [];
+
+  for (const carta of mao) {
+    if (!carta || carta === 'vazio') continue;
+    const partes = carta.split('_');
+    const num = parseInt(partes[0] ?? '0', 10);
+    const naipe = normalizarNaipe(partes[1] ?? '');
+
+    if (num === pinta.alvoPerico && naipe === pinta.naipePinta) temPerico = true;
+    if (num === pinta.alvoPerica && naipe === pinta.naipePinta) temPerica = true;
+    naipesMao.push(naipe);
+  }
+
+  // Flor Reservada: tem perico e perica ao mesmo tempo
+  if (temPerico && temPerica) return true;
+
+  // 3 cartas do mesmo naipe
+  if (naipesMao[0] === naipesMao[1] && naipesMao[1] === naipesMao[2]) return true;
+
+  // 2 cartas do mesmo naipe + Perico ou Perica
+  if (temPerico || temPerica) {
+    const cartasFiltradas = mao.filter((c) => {
+      const partes = c.split('_');
+      const num = parseInt(partes[0] ?? '0', 10);
+      const naipe = normalizarNaipe(partes[1] ?? '');
+      const ehPeca =
+        (num === pinta.alvoPerico && naipe === pinta.naipePinta) ||
+        (num === pinta.alvoPerica && naipe === pinta.naipePinta);
+      return !ehPeca;
+    });
+
+    if (cartasFiltradas.length === 2) {
+      const n1 = normalizarNaipe(cartasFiltradas[0]!.split('_')[1] ?? '');
+      const n2 = normalizarNaipe(cartasFiltradas[1]!.split('_')[1] ?? '');
+      if (n1 === n2) return true;
+    }
+  }
+
+  return false;
 };
 
+// Cálculo do Envido atualizado com Perico (30 + carta = 35 ex) e Perica (29 + carta = 34 ex)
 const calcularPontosEnvido = (mao: string[]) => {
   const pinta = alvosPinta();
-  let melhorPar = 0;
+  let melhorEnvido = 0;
   let melhorSola = 0;
-  let pontosEspeciais = 0;
 
-  for (let i = 0; i < mao.length; i++) {
-    const cartaI = mao[i];
-    if (!cartaI || cartaI === 'vazio') continue;
-    const d1 = cartaI.split('_');
-    const num1 = parseInt(d1[0] ?? '0', 10);
-    const naipe1 = normalizarNaipe(d1[1] ?? '');
+  let pericoPresente = false;
+  let pericaPresente = false;
+  let cartasDoNaipePinta: number[] = [];
 
-    if (naipe1 === pinta.naipePinta) {
-      if (num1 === pinta.alvoPerico && pontosEspeciais < 30) pontosEspeciais = 30;
-      else if (num1 === pinta.alvoPerica && pontosEspeciais < 29) pontosEspeciais = 29;
-    }
+  for (const carta of mao) {
+    if (!carta || carta === 'vazio') continue;
+    const partes = carta.split('_');
+    const num = parseInt(partes[0] ?? '0', 10);
+    const naipe = normalizarNaipe(partes[1] ?? '');
 
-    let v1 = num1 >= 10 ? 0 : num1;
-    if (v1 > melhorSola) melhorSola = v1;
+    let valorEnv = num >= 10 ? 0 : num;
+    if (valorEnv > melhorSola) melhorSola = valorEnv;
 
-    for (let j = i + 1; j < mao.length; j++) {
-      const cartaJ = mao[j];
-      if (!cartaJ || cartaJ === 'vazio') continue;
-      const d2 = cartaJ.split('_');
-      const num2 = parseInt(d2[0] ?? '0', 10);
-      const naipe2 = normalizarNaipe(d2[1] ?? '');
-      if (naipe1 === naipe2) {
-        let v2 = num2 >= 10 ? 0 : num2;
-        let soma = v1 + v2 + 20;
-        if (soma > melhorPar) melhorPar = soma;
+    if (naipe === pinta.naipePinta) {
+      if (num === pinta.alvoPerico) {
+        pericoPresente = true;
+      } else if (num === pinta.alvoPerica) {
+        pericaPresente = true;
+      } else {
+        cartasDoNaipePinta.push(valorEnv);
       }
     }
   }
 
-  let resultado = melhorPar;
-  if (pontosEspeciais > resultado) resultado = pontosEspeciais;
-  if (resultado === 0) resultado = melhorSola;
-  return resultado;
+  // Perico vale 30 base + valor da carta da mesma pinta (ex: 30 + 5 = 35)
+  if (pericoPresente) {
+    let maxCombo = 30;
+    for (const val of cartasDoNaipePinta) {
+      const soma = 30 + val;
+      if (soma > maxCombo) maxCombo = soma;
+    }
+    if (maxCombo > melhorEnvido) melhorEnvido = maxCombo;
+  }
+
+  // Perica vale 29 base + valor da carta da mesma pinta (ex: 29 + 5 = 34)
+  if (pericaPresente) {
+    let maxCombo = 29;
+    for (const val of cartasDoNaipePinta) {
+      const soma = 29 + val;
+      if (soma > maxCombo) maxCombo = soma;
+    }
+    if (maxCombo > melhorEnvido) melhorEnvido = maxCombo;
+  }
+
+  // Pares normais do mesmo naipe
+  for (let i = 0; i < mao.length; i++) {
+    const c1 = mao[i];
+    if (!c1 || c1 === 'vazio') continue;
+    const [n1Str, s1] = c1.split('_');
+    const num1 = parseInt(n1Str ?? '0', 10);
+    const naipe1 = normalizarNaipe(s1 ?? '');
+    const v1 = num1 >= 10 ? 0 : num1;
+
+    for (let j = i + 1; j < mao.length; j++) {
+      const c2 = mao[j];
+      if (!c2 || c2 === 'vazio') continue;
+      const [n2Str, s2] = c2.split('_');
+      const num2 = parseInt(n2Str ?? '0', 10);
+      const naipe2 = normalizarNaipe(s2 ?? '');
+      const v2 = num2 >= 10 ? 0 : num2;
+
+      if (naipe1 === naipe2) {
+        const isP1Perico = num1 === pinta.alvoPerico && naipe1 === pinta.naipePinta;
+        const isP1Perica = num1 === pinta.alvoPerica && naipe1 === pinta.naipePinta;
+        const isP2Perico = num2 === pinta.alvoPerico && naipe2 === pinta.naipePinta;
+        const isP2Perica = num2 === pinta.alvoPerica && naipe2 === pinta.naipePinta;
+
+        let soma = 0;
+        if (isP1Perico || isP2Perico) {
+          soma = 30 + (isP1Perico ? v2 : v1);
+        } else if (isP1Perica || isP2Perica) {
+          soma = 29 + (isP1Perica ? v2 : v1);
+        } else {
+          soma = v1 + v2 + 20;
+        }
+        if (soma > melhorEnvido) melhorEnvido = soma;
+      }
+    }
+  }
+
+  if (pericoPresente && 30 > melhorEnvido) melhorEnvido = 30;
+  if (pericaPresente && 29 > melhorEnvido) melhorEnvido = 29;
+
+  if (melhorEnvido === 0) melhorEnvido = melhorSola;
+  return melhorEnvido;
 };
 
 const resetaJogo = () => {
@@ -706,7 +796,7 @@ const responderDesafio = (resposta: string) => {
   } else if (estadoDesafioAI.value === 'TRUCO') {
     if (resposta === 'Aceitar') {
       apostaAtual.value = 3;
-      ultimoApostador.value = 'ai'; // IA cantou, agora o humano aceitou
+      ultimoApostador.value = 'ai';
       mensagemStatus.value = '✨ Você aceitou o Truco! A rodada vale 3 pontos.';
       estadoDesafioAI.value = '';
       if (cartaJogadaHumano.value && cartaJogadaIA.value) {
@@ -715,7 +805,7 @@ const responderDesafio = (resposta: string) => {
       return;
     } else if (resposta === 'Retruco') {
       apostaAtual.value = 6;
-      ultimoApostador.value = 'humano'; // Humano retrucou
+      ultimoApostador.value = 'humano';
       mensagemStatus.value = '🔥 Você retrucou! A rodada vale 6 pontos.';
       estadoDesafioAI.value = '';
       if (cartaJogadaHumano.value && cartaJogadaIA.value) {
@@ -774,13 +864,11 @@ const cantarAcao = (acao: string) => {
     const novoValor = acao === 'Truco' ? 3 : acao === 'Retruco' ? 6 : acao === 'Vale 9' ? 9 : 12;
     const forcaAI = melhorForcaIA();
 
-    ultimoApostador.value = 'humano'; // Você cantou, agora é vez da IA responder
+    ultimoApostador.value = 'humano';
 
     if (forcaAI >= 7 || Math.random() < 0.7) {
       apostaAtual.value = novoValor;
       textoRespostaIA.value = `A IA <b>ACEITOU</b> o seu ${acao}!<br>A rodada passa a valer <b>${novoValor} pontos</b>.`;
-
-      // A IA aceitou, então o oponente (IA) agora tem o direito de retrucar/subir se quiser
       ultimoApostador.value = 'ai';
 
       if (forcaAI >= 12 && novoValor < 12 && Math.random() < 0.45) {
@@ -840,7 +928,6 @@ onMounted(() => {
   letter-spacing: 0.3px;
 }
 
-/* Painéis Laterais de Ação Compactos */
 .side-panel {
   width: 105px;
   background: rgba(0, 0, 0, 0.25);
