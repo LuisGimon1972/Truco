@@ -287,12 +287,17 @@
         </q-card>
       </q-dialog>
 
-      <!-- Ecrã de Fim de Partida -->
+      <!-- Ecrã de Fim de Partida com Efeito Especial de Vitória -->
       <q-dialog v-model="fimPartida" persistent>
-        <q-card class="bg-dark text-white q-pa-lg text-center dialog-effect">
+        <q-card class="bg-dark text-white q-pa-lg text-center dialog-effect victory-card-glow">
           <q-card-section>
-            <q-icon name="military_tech" color="amber-4" size="56px" class="q-mb-xs" />
-            <div class="text-h5 text-amber-4 text-weight-bold">Fim da Partida!</div>
+            <q-icon
+              name="military_tech"
+              color="amber-4"
+              size="64px"
+              class="q-mb-xs trophy-bounce"
+            />
+            <div class="text-h4 text-amber-4 text-weight-bold text-shadow">Vitória Épica!</div>
             <div class="text-body1 q-mt-sm text-grey-2">{{ mensagemFimPartida }}</div>
           </q-card-section>
           <q-card-actions align="center" class="q-gutter-sm q-mt-sm">
@@ -479,13 +484,9 @@ const verificarTemFlor = (mao: string[]) => {
     naipesMao.push(naipe);
   }
 
-  // Flor Reservada: tem perico e perica ao mesmo tempo
   if (temPerico && temPerica) return true;
-
-  // 3 cartas do mesmo naipe
   if (naipesMao[0] === naipesMao[1] && naipesMao[1] === naipesMao[2]) return true;
 
-  // 2 cartas do mesmo naipe + Perico ou Perica
   if (temPerico || temPerica) {
     const cartasFiltradas = mao.filter((c) => {
       const partes = c.split('_');
@@ -507,7 +508,6 @@ const verificarTemFlor = (mao: string[]) => {
   return false;
 };
 
-// Cálculo do Envido atualizado com Perico (30 + carta = 35 ex) e Perica (29 + carta = 34 ex)
 const calcularPontosEnvido = (mao: string[]) => {
   const pinta = alvosPinta();
   let melhorEnvido = 0;
@@ -537,7 +537,6 @@ const calcularPontosEnvido = (mao: string[]) => {
     }
   }
 
-  // Perico vale 30 base + valor da carta da mesma pinta (ex: 30 + 5 = 35)
   if (pericoPresente) {
     let maxCombo = 30;
     for (const val of cartasDoNaipePinta) {
@@ -547,7 +546,6 @@ const calcularPontosEnvido = (mao: string[]) => {
     if (maxCombo > melhorEnvido) melhorEnvido = maxCombo;
   }
 
-  // Perica vale 29 base + valor da carta da mesma pinta (ex: 29 + 5 = 34)
   if (pericaPresente) {
     let maxCombo = 29;
     for (const val of cartasDoNaipePinta) {
@@ -557,7 +555,6 @@ const calcularPontosEnvido = (mao: string[]) => {
     if (maxCombo > melhorEnvido) melhorEnvido = maxCombo;
   }
 
-  // Pares normais do mesmo naipe
   for (let i = 0; i < mao.length; i++) {
     const c1 = mao[i];
     if (!c1 || c1 === 'vazio') continue;
@@ -665,11 +662,81 @@ const iniciarPartida = () => {
   }
 };
 
+// Efeito Especial de Confetes / Partículas em Tela Cheia ao Vencer
+const dispararEfeitosVitoria = () => {
+  const canvas = document.createElement('canvas');
+  canvas.style.position = 'fixed';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  canvas.style.width = '100vw';
+  canvas.style.height = '100vh';
+  canvas.style.pointerEvents = 'none';
+  canvas.style.zIndex = '99999';
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles: any[] = [];
+  const colors = ['#ffc107', '#ff5722', '#4caf50', '#2196f3', '#e91e63', '#00bcd4'];
+
+  for (let i = 0; i < 180; i++) {
+    particles.push({
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      vx: (Math.random() - 0.5) * 18,
+      vy: (Math.random() - 0.7) * 18 - 5,
+      size: Math.random() * 9 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      alpha: 1,
+      decay: Math.random() * 0.012 + 0.004,
+      rotation: Math.random() * 360,
+      vRot: (Math.random() - 0.5) * 12,
+    });
+  }
+
+  const animate = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let active = false;
+
+    particles.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.45; // Gravidade
+      p.alpha -= p.decay;
+      p.rotation += p.vRot;
+
+      if (p.alpha > 0) {
+        active = true;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 1.5);
+        ctx.restore();
+      }
+    });
+
+    if (active) {
+      requestAnimationFrame(animate);
+    } else {
+      document.body.removeChild(canvas);
+    }
+  };
+
+  animate();
+};
+
 const verificarFimPartida = () => {
   if (pontosHumano.value >= limitePartida) {
     mensagemFimPartida.value = `🎉 Parabéns! Venceu a partida por ${pontosHumano.value} a ${pontosIA.value}!`;
     fimPartida.value = true;
     estadoJogo.value = 'FIM';
+    dispararEfeitosVitoria(); // Dispara o efeito especial de vitória!
   } else if (pontosIA.value >= limitePartida) {
     mensagemFimPartida.value = `🤖 Fim do jogo! A IA venceu a partida por ${pontosIA.value} a ${pontosHumano.value}.`;
     fimPartida.value = true;
@@ -1043,5 +1110,41 @@ onMounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
   min-width: 300px;
+}
+
+/* Especiais para Vitória */
+.victory-card-glow {
+  border: 2px solid #ffc107 !important;
+  box-shadow:
+    0 0 30px rgba(255, 193, 7, 0.6),
+    0 12px 30px rgba(0, 0, 0, 0.8) !important;
+  animation: pulse-glow 2s infinite alternate;
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow:
+      0 0 15px rgba(255, 193, 7, 0.4),
+      0 12px 30px rgba(0, 0, 0, 0.8);
+  }
+  100% {
+    box-shadow:
+      0 0 35px rgba(255, 193, 7, 0.8),
+      0 12px 30px rgba(0, 0, 0, 0.8);
+  }
+}
+
+.trophy-bounce {
+  animation: bounce 1.2s infinite ease-in-out;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 </style>
