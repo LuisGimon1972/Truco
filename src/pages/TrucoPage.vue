@@ -175,7 +175,10 @@
                 class="player-card flex flex-center"
                 :class="{
                   'disabled-card':
-                    carta === 'vazio' || estadoJogo !== 'JOGANDO' || estadoDesafioAI !== '',
+                    carta === 'vazio' ||
+                    estadoJogo !== 'JOGANDO' ||
+                    estadoDesafioAI !== '' ||
+                    bloqueioJogada,
                 }"
                 @click="jogarCartaHumano(index)"
               >
@@ -364,6 +367,9 @@ const vitoriasHumano = ref(0);
 const vitoriasIA = ref(0);
 const vencedoresVazas = ref<number[]>([]);
 
+const quemJogaPrimeiro = ref<'humano' | 'ai'>('humano');
+const bloqueioJogada = ref(false);
+
 const florCantadaRodada = ref(false);
 const envidoCantadoRodada = ref(false);
 const estadoDesafioAI = ref('');
@@ -476,7 +482,6 @@ const melhorForcaIA = () => {
   return melhor;
 };
 
-// Deteta se tem Flor e se é Flor Reservada (Perico + Perica)
 const verificarDetalhesFlor = (mao: string[]) => {
   if (!mao[0] || !mao[1] || !mao[2]) return { tem: false, reservada: false };
   const pinta = alvosPinta();
@@ -496,14 +501,10 @@ const verificarDetalhesFlor = (mao: string[]) => {
     naipesMao.push(naipe);
   }
 
-  // Flor Reservada: Perico e Perica ao mesmo tempo (Vale 5 pontos)
   if (temPerico && temPerica) return { tem: true, reservada: true };
-
-  // 3 cartas do mesmo naipe
   if (naipesMao[0] === naipesMao[1] && naipesMao[1] === naipesMao[2])
     return { tem: true, reservada: false };
 
-  // 2 cartas do mesmo naipe + Perico ou Perica
   if (temPerico || temPerica) {
     const cartasFiltradas = mao.filter((c) => {
       const partes = c.split('_');
@@ -554,7 +555,6 @@ const calcularPontosEnvido = (mao: string[]) => {
     }
   }
 
-  // Perico base 30 + carta da mesma pinta (ex: 30 + 5 = 35)
   if (pericoPresente) {
     let maxCombo = 30;
     for (const val of cartasDoNaipePinta) {
@@ -564,7 +564,6 @@ const calcularPontosEnvido = (mao: string[]) => {
     if (maxCombo > melhorEnvido) melhorEnvido = maxCombo;
   }
 
-  // Perica base 29 + carta da mesma pinta (ex: 29 + 5 = 34)
   if (pericaPresente) {
     let maxCombo = 29;
     for (const val of cartasDoNaipePinta) {
@@ -625,6 +624,8 @@ const resetaJogo = () => {
   vitoriasHumano.value = 0;
   vitoriasIA.value = 0;
   vencedoresVazas.value = [];
+  quemJogaPrimeiro.value = 'humano';
+  bloqueioJogada.value = false;
   florCantadaRodada.value = false;
   envidoCantadoRodada.value = false;
   estadoDesafioAI.value = '';
@@ -644,6 +645,8 @@ const iniciarPartida = () => {
   vitoriasHumano.value = 0;
   vitoriasIA.value = 0;
   vencedoresVazas.value = [];
+  quemJogaPrimeiro.value = 'humano';
+  bloqueioJogada.value = false;
   florCantadaRodada.value = false;
   envidoCantadoRodada.value = false;
   estadoDesafioAI.value = '';
@@ -659,7 +662,7 @@ const iniciarPartida = () => {
   maoHumano.value = [baralho[0] ?? '', baralho[1] ?? '', baralho[2] ?? ''];
   maoAI.value = [baralho[3] ?? '', baralho[4] ?? '', baralho[5] ?? ''];
 
-  mensagemStatus.value = 'Rodada iniciada! Cante o Envido/Flor na 1ª vaza ou jogue uma carta.';
+  mensagemStatus.value = 'Rodada iniciada! Sua vez de jogar a 1ª vaza.';
 
   const florAI = verificarDetalhesFlor(maoAI.value);
   if (florAI.tem) {
@@ -779,8 +782,10 @@ const encerrarRodada = (vencedor: number) => {
   verificarFimPartida();
   if (estadoJogo.value !== 'FIM') {
     setTimeout(() => {
+      cartaJogadaHumano.value = '';
+      cartaJogadaIA.value = '';
       iniciarPartida();
-    }, 2000);
+    }, 2500);
   }
 };
 
@@ -800,15 +805,8 @@ const ladoVencedorRodada = (): number => {
   return 1;
 };
 
-const jogarCartaHumano = (index: number) => {
+const executarJogadaAIPrimeiro = () => {
   if (estadoJogo.value !== 'JOGANDO' || estadoDesafioAI.value !== '') return;
-  const carta = maoHumano.value[index];
-  if (!carta || carta === 'vazio') return;
-
-  maoHumano.value[index] = 'vazio';
-  cartaJogadaHumano.value = carta;
-  mensagemStatus.value = 'Você jogou sua carta.';
-
   const cartasValidasAI = maoAI.value.filter((c) => c !== 'vazio');
   if (cartasValidasAI.length === 0) return;
 
@@ -819,16 +817,54 @@ const jogarCartaHumano = (index: number) => {
   maoAI.value[realIdxAI] = 'vazio';
   cartaJogadaIA.value = cartaAI;
 
-  if (apostaAtual.value === 1 && melhorForcaIA() >= 10 && Math.random() < 0.5) {
-    estadoDesafioAI.value = 'TRUCO';
-    ultimoApostador.value = 'ai';
-    valorDesafioAI.value = 3;
-    textoDesafioAI.value = 'A IA cantou TRUCO! Deseja aceitar?';
-    mostrarDialogoDesafio.value = true;
-    return;
-  }
+  mensagemStatus.value = `A IA jogou primeiro. Escolha sua carta para responder!`;
+};
 
-  processarResultadoVaza(carta, cartaAI);
+const jogarCartaHumano = (index: number) => {
+  if (estadoJogo.value !== 'JOGANDO' || estadoDesafioAI.value !== '' || bloqueioJogada.value)
+    return;
+  const carta = maoHumano.value[index];
+  if (!carta || carta === 'vazio') return;
+
+  bloqueioJogada.value = true;
+  maoHumano.value[index] = 'vazio';
+  cartaJogadaHumano.value = carta;
+
+  if (cartaJogadaIA.value) {
+    processarResultadoVaza(carta, cartaJogadaIA.value);
+  } else {
+    mensagemStatus.value = 'Você jogou sua carta. A IA está a jogar...';
+
+    setTimeout(() => {
+      const cartasValidasAI = maoAI.value.filter((c) => c !== 'vazio');
+      if (cartasValidasAI.length === 0) {
+        bloqueioJogada.value = false;
+        return;
+      }
+
+      const idxAI = Math.floor(Math.random() * cartasValidasAI.length);
+      const cartaAI = cartasValidasAI[idxAI];
+      if (!cartaAI) {
+        bloqueioJogada.value = false;
+        return;
+      }
+      const realIdxAI = maoAI.value.indexOf(cartaAI);
+      maoAI.value[realIdxAI] = 'vazio';
+      cartaJogadaIA.value = cartaAI;
+
+      if (apostaAtual.value === 1 && melhorForcaIA() >= 10 && Math.random() < 0.5) {
+        estadoDesafioAI.value = 'TRUCO';
+        ultimoApostador.value = 'ai';
+        valorDesafioAI.value = 3;
+        textoDesafioAI.value = 'A IA cantou TRUCO! Deseja aceitar?';
+        mostrarDialogoDesafio.value = true;
+        bloqueioJogada.value = false;
+        return;
+      }
+
+      processarResultadoVaza(carta, cartaAI);
+    }, 600);
+  }
 };
 
 const processarResultadoVaza = (cHumano: string, cAI: string) => {
@@ -839,13 +875,15 @@ const processarResultadoVaza = (cHumano: string, cAI: string) => {
   if (fHumano > fAI) {
     vitoriasHumano.value++;
     resVaza = 1;
-    mensagemStatus.value += ` | Você venceu a vaza ${vazaAtual.value}!`;
+    quemJogaPrimeiro.value = 'humano';
+    mensagemStatus.value = `🏆 Você venceu esta vaza!`;
   } else if (fAI > fHumano) {
     vitoriasIA.value++;
     resVaza = 2;
-    mensagemStatus.value += ` | A IA venceu a vaza ${vazaAtual.value}!`;
+    quemJogaPrimeiro.value = 'ai';
+    mensagemStatus.value = `🤖 A IA venceu esta vaza!`;
   } else {
-    mensagemStatus.value += ` | Vaza empatada!`;
+    mensagemStatus.value = `🤝 Vaza empatada!`;
   }
 
   vencedoresVazas.value.push(resVaza);
@@ -859,10 +897,19 @@ const processarResultadoVaza = (cHumano: string, cAI: string) => {
   ) {
     const vencedor = ladoVencedorRodada();
     encerrarRodada(vencedor);
+  } else {
+    // Mantém as cartas visíveis na mesa até à próxima jogada ou vaza
+    bloqueioJogada.value = false;
+    if (quemJogaPrimeiro.value === 'ai') {
+      executarJogadaAIPrimeiro();
+    } else {
+      mensagemStatus.value = `Início da vaza ${vazaAtual.value}. Sua vez de jogar!`;
+    }
   }
 };
 
 const responderDesafio = (resposta: string) => {
+  bloqueioJogada.value = false;
   if (estadoDesafioAI.value === 'ENVIDO') {
     if (resposta === 'Aceitar') {
       const ptsHumano = calcularPontosEnvido(maoHumano.value);
@@ -975,6 +1022,8 @@ const cantarAcao = (acao: string) => {
       verificarFimPartida();
       if (estadoJogo.value !== 'FIM') {
         setTimeout(() => {
+          cartaJogadaHumano.value = '';
+          cartaJogadaIA.value = '';
           iniciarPartida();
         }, 2000);
       }
