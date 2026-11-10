@@ -1034,7 +1034,13 @@ const cantarAcao = (acao: string) => {
 };
 
 const exitGame = () => {
-  router.push('/');
+  // Tenta fechar a aba/janela atual
+  window.close();
+
+  // Fallback caso o navegador bloqueie o window.close()
+  setTimeout(() => {
+    router.push('/');
+  }, 100);
 };
 
 onMounted(() => {
